@@ -16,6 +16,23 @@ data <- createOlapCube(paste0(getwd(),"/data/"))
 data <- preProcessTimeSeries(data)
 
 
+## use parallel run timeseries on shopId - skuId
+nCores <- detectCores() - 1
+cl <- makeCluster(nCores)
+registerDoParallel(cl)
+
+##length data for cores
+shopIdSkuId <- data[,.N,.(shopId,skuId)][,.(shopId,skuId)]
+l <- dim(shopIdSkuId)[1]
+result <- foreach(i = 1:l,.packages = c("data.table","forecast")) %dopar% 
+  forecastOneShopIdSkuId(data,shopIdSkuId[i])
+
+stopCluster(cl)
+
+## rbind result forecast after parallels
+forecastDT <- rbindlist(result)
+
+
 
 
 

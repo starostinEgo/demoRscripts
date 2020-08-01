@@ -5,6 +5,7 @@ library(data.table)
 library(lubridate)
 library(arrow)
 library("forecast")
+library(doParallel)
 
 
 ##create sas for blob container
@@ -209,7 +210,7 @@ fs.holtWinterMult <- function(ts,step){
   try(predict(a,n.ahead=step),silent = T)
 }
 
-fs.holtFun <- function(ts,step){
+fs.holt <- function(ts,step){
   a <- holt(ts,h=step)
   predict(a,n.ahead=step)$mean
 }
@@ -219,19 +220,53 @@ fs.croston <- function(ts,step){
   try(predict(a,n.ahead=step)$mean,silent = T)
 }
 
-nnetFun <- function (ts,step){
+fs.nnet <- function(ts,step){
   a<-try(nnetar(newTs),silent = T)
   try(forecast(a,h=step)$mean,silent = T)
 }
 
-tbatsFunc <-function (ts,step){
-  a<-try(tbats(newTs),silent = T)
-  try(forecast(a,h=steph)$mean,silent = T)
+fs.tbats <-function(ts,step){
+  a<-try(tbats(ts),silent = T)
+  try(forecast(a,h=step)$mean,silent = T)
 }
 
-arimaFunc <- function (newTs)
-{
-  a<-try(auto.arima(newTs),silent = silentRele)
-  f<-try(forecast(a,h=steph)$mean,silent = silentRele)
-  return(f)
+fs.arima <- function(ts,step){
+  a<-try(auto.arima(ts),silent = T)
+  try(forecast(a,h=step)$mean,silent = T)
 }
+
+forecastOneShopIdSkuId <- function(data,shopIdSkuId){
+  
+  step <- 8
+  
+  setkey(data,shopId,skuId)
+  setkey(shopIdSkuId,shopId,skuId)
+  data <- merge(data,shopIdSkuId)
+  
+  data <- data[order(date)]
+  ts <- ts(data$sales)
+  
+  result <- data.table("fs.means",t(fs.means(ts,step)))
+  result <- rbind(result,data.table("fs.ses",t(fs.ses(ts,step)))) 
+  try(result <- rbind(result,data.table("fs.arima",t(fs.arima(ts,step)))))
+  try(result <- rbind(result,data.table("fs.croston",t(fs.croston(ts,step))))) 
+  try(result <- rbind(result,data.table("fs.holt",t(fs.holt(ts,step)))))
+  try(result <- rbind(result,data.table("fs.holtWinterAdditive",t(fs.holtWinterAdditive(ts,step))))) 
+  try(result <- rbind(result,data.table("fs.holtWinterMult",t(fs.holtWinterMult(ts,step)))))
+  result <- rbind(result,data.table("fs.naive",t(fs.naive(ts,step)))) 
+  try(result <- rbind(result,data.table("fs.nnet",t(fs.nnet(ts,step)))))
+  try(result <- rbind(result,data.table("fs.snaive",t(fs.snaive(ts,step)))))
+  try(result <- rbind(result,data.table("fs.stlEts",t(fs.stlEts(ts,step)))))
+  try(result <- rbind(result,data.table("fs.tbst",t(fs.tbats(ts,step)))))
+  
+  result <- cbind(result,shopIdSkuId)
+  names(result)[1] <- c("method")
+  reorder <- c("shopId","skuId","method",paste0("V",seq(1:step)))
+  setcolorder(result,reorder)
+  
+  return(result)
+}
+
+
+
+
