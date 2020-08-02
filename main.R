@@ -45,7 +45,7 @@ stopCluster(cl)
 
 ## rbind result forecast after parallels
 forecastDT <- rbindlist(result)
-
+fwrite(forecastDT,"forecastDT.csv")
 print("прогнозирование выполнен за: ")
 print(Sys.time() - st)
 

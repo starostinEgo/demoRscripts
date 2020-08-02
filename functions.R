@@ -6,7 +6,7 @@ library(lubridate)
 library(arrow)
 library(forecast)
 library(doParallel)
-library(xts)
+
 
 
 ##create sas for blob container
