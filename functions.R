@@ -4,8 +4,9 @@ library(tidyverse)
 library(data.table)
 library(lubridate)
 library(arrow)
-library("forecast")
+library(forecast)
 library(doParallel)
+library(xts)
 
 
 ##create sas for blob container
@@ -216,12 +217,12 @@ fs.holt <- function(ts,step){
 }
 
 fs.croston <- function(ts,step){
-  a<-try(croston(newTs,h=step,alpha=0.2),silent = T)
+  a<-try(croston(ts,h=step,alpha=0.2),silent = T)
   try(predict(a,n.ahead=step)$mean,silent = T)
 }
 
 fs.nnet <- function(ts,step){
-  a<-try(nnetar(newTs),silent = T)
+  a<-try(nnetar(ts),silent = T)
   try(forecast(a,h=step)$mean,silent = T)
 }
 
@@ -244,7 +245,7 @@ forecastOneShopIdSkuId <- function(data,shopIdSkuId){
   data <- merge(data,shopIdSkuId)
   
   data <- data[order(date)]
-  ts <- ts(data$sales)
+  ts <- ts(data$sales,frequency = 365)
   
   result <- data.table("fs.means",t(fs.means(ts,step)))
   result <- rbind(result,data.table("fs.ses",t(fs.ses(ts,step)))) 
